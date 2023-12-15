@@ -1,0 +1,57 @@
+# To use this Github Actions deploy workflow, edit all values and place this
+# file into the ./.github/workflows directory.
+
+name: Deploy Slack-Zendesk integration service
+
+run-name: Deploy Slack-Zendesk integration service @ ${{ github.sha }}
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GIT_HASH: ${{ github.sha }}
+  # insert your actual Docker image name instead of EXAMPLE_DOKER_IMAGE_NAME below
+  DOCKER_IMAGE_GCP: EXAMPLE_DOKER_IMAGE_NAME:${{ github.sha }}
+  
+  GCP_PROJECT: #GCP project name
+  GCP_RUN_APPNAME: #GCP app name
+  GCP_RUN_REGION: #GCP region name
+  GCP_RUN_SERVICE_ACCOUNT: #GCP account
+  GCP_WORKLOAD_IDENTITY_PROVIDER: #GCP identity provider
+  GCP_DEPLOY_SERVICE_ACCOUNT: #GCP deploy service account
+
+# See https://www.padok.fr/en/blog/github-action-gcp-identity
+# See https://cloud.google.com/blog/products/identity-security/enabling-keyless-authentication-from-github-actions
+
+jobs:
+  deploy_service:
+    runs-on: ubuntu-22.04
+    name: Deploy Slack-Zendesk integration service
+
+    # Add "id-token" with the intended permissions.
+    # See https://github.com/google-github-actions/auth#usage
+    # See https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout ${{ github.repository }}
+        uses: actions/checkout@v3
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up GCP Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Configure Docker to use GCP Container Registry
+        run: gcloud auth configure-docker
+
+      - name: Run make gcp-deploy
+        run: make gcp-deploy

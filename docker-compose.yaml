@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+
+  app:
+    container_name: ${PROJECT_NAME}_app
+    image: ${PROJECT_NAME}_app
+    build:
+      context: .
+      dockerfile: dev.dockerfile
+    # entrypoint: ["./run.sh"]
+    entrypoint: ["/bin/bash", "-c", "echo 'Waiting for you to log into this container via `make login`'; while true; do sleep 99999; done"]
+    depends_on:
+      - postgres
+    networks:
+      - db
+    environment:
+      PORT: ${PORT}
+
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DATABASE: state
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: trivial
+    volumes:
+      - ./app.py:/work/app.py
+      - ./config.py:/work/config.py
+      - ./dbshell.sh:/work/dbshell.sh
+      - ./requirements.txt:/work/requirements.txt
+      - ./run.sh:/work/run.sh
+      - ./settings.py:/work/settings.py
+      - ./data:/work/data
+    ports:
+      - '${PORT}:${PORT}'
+
+  postgres:
+    container_name: ${PROJECT_NAME}_db
+    image: postgres:15.2-alpine3.17
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: trivial
+      POSTGRES_DB: state
+
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data
+        volume:
+          nocopy: true
+    networks:
+      - db
+    ports:
+      # Serve the DB on the host
+      - '5432:5432'
+
+volumes:
+  pgdata:
+
+networks:
+  db:
